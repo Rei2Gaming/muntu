@@ -1,6 +1,6 @@
 # muntu
-M
-untu Version 0.1 Test. Be kind, be honest, be brutal.
+
+Muntu Version 0.1 Test. Be kind, be honest, be brutal.
 
 A few things before you start:
 
