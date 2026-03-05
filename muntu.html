@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Muntu: First Forgetting</title>
+  <script>
+    (function() {
+      var preload = [
+        'Muntu Visual Assets/nzinga-portrait.png',
+        'Muntu Visual Assets/dawn-bg.png',
+        'Muntu Visual Assets/dusk-bg.png',
+        'Muntu Visual Assets/ndzo-wall.png',
+        'ember-frame-1.png',
+        'ember-frame-2.png',
+        'ember-frame-3.png',
+        'ember-frame-4.png',
+        'ember-frame-5.png',
+        'Muntu Visual Assets/post-dam.png',
+        'Muntu Visual Assets/post-fields.png',
+        'Muntu Visual Assets/collapse-dam.png',
+        'Muntu Visual Assets/collapse-fields.png',
+      ];
+      preload.forEach(function(src) { var i = new Image(); i.src = src; });
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    /* #game is a zero-size anchor for the worldBreathe animation.
+       Fixed children scale with it during the animation because
+       CSS transforms create a new containing block for position:fixed. */
+    #game {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ─── FIXED HUD ELEMENTS ─────────────────────────────────────── */
+
+    #mwenyu-label {
+      position: fixed;
+      top: 1.5rem;
+      left: 1.5rem;
+      z-index: 10;
+      font-size: clamp(11px, 3.2vw, 15pt);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    #title {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 10;
+      font-size: clamp(11px, 3.2vw, 15pt);
+      font-style: italic;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+    }
+
+    #loop-display {
+      position: fixed;
+      top: 3.8rem;
+      left: 1.5rem;
+      z-index: 10;
+      font-size: clamp(8px, 2.4vw, 10pt);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    #kixikila-block {
+      position: fixed;
+      top: 5.8rem;
+      left: 1.5rem;
+      z-index: 10;
+    }
+
+    #kixikila-label {
+      font-size: clamp(11px, 3.2vw, 15pt);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    #kixikila-subtitle {
+      font-size: clamp(8px, 2.4vw, 10pt);
+      font-style: italic;
+    }
+
+    /* ─── NDZO WALL ──────────────────────────────────────────────── */
+
+    #ndzo-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(10, 4, 0, 0.65), rgba(10, 4, 0, 0.65)),
+        url('Muntu Visual Assets/ndzo-wall.png');
+      background-size: cover;
+      background-position: center;
+      z-index: 145;
+      pointer-events: none;
+    }
+
+    #event-block {
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      max-width: 600px;
+      padding: 0 1.2rem;
+      text-align: center;
+      z-index: 10;
+    }
+
+    #event-text {
+      font-size: clamp(9px, 2.6vw, 10pt);
+      line-height: 1.7;
+      margin-bottom: 1.4rem;
+    }
+
+    .choice-btn {
+      background: none;
+      border: 1px solid #FFFFFF;
+      color: #FFFFFF;
+      font-family: Georgia, serif;
+      font-size: 0.85rem;
+      padding: 0.65rem 1.3rem;
+      min-height: 44px;
+      cursor: pointer;
+      margin-right: 0.8rem;
+      letter-spacing: 0.06em;
+      transition: background 0.15s, color 0.15s;
+      text-shadow:
+        0 0 6px rgba(0,0,0,1),
+        0 0 12px rgba(0,0,0,0.8);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5);
+    }
+
+    .choice-btn:hover {
+      background: rgba(255,255,255,0.15);
+      color: #FFFFFF;
+    }
+
+    #collapse-text {
+      font-size: clamp(9px, 2.6vw, 10pt);
+      line-height: 1.7;
+    }
+
+    #reset-btn {
+      display: none;
+      background: none;
+      border: 1px solid #F5ECD7;
+      color: #F5ECD7;
+      font-family: Georgia, serif;
+      font-size: 0.85rem;
+      padding: 0.65rem 1.5rem;
+      min-height: 44px;
+      cursor: pointer;
+      margin-top: 1.4rem;
+      letter-spacing: 0.1em;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    #reset-btn:hover {
+      background: #F5ECD7;
+      color: #1A0A00;
+    }
+
+    /* Nzinga sequence — implemented Week 2.
+       Loop 0: right-panel portrait at Mwenyu 25, first loop only.
+       Loop 1: full hook sequence replaces collapse when loop_count === 1. */
+    #nzinga-moment {
+      display: none;
+    }
+
+    #debug {
+      position: fixed;
+      bottom: 1rem;
+      right: 1.2rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.65rem;
+      color: #F5ECD7;
+      opacity: 0.25;
+      line-height: 1.6;
+    }
+
+    /* ─── BACKGROUNDS ───────────────────────────────────────────── */
+
+    @keyframes bgSway {
+      0%   { background-position: 50% 50%; }
+      50%  { background-position: 52% 50%; }
+      100% { background-position: 50% 50%; }
+    }
+
+    #bg-dawn,
+    #bg-dusk {
+      position: fixed;
+      inset: 0;
+      background-size: cover;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    #bg-dawn {
+      background-image: url('Muntu Visual Assets/dawn-bg.png');
+      background-position: 50% 50%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      animation: bgSway 12s ease-in-out infinite;
+      opacity: 1;
+    }
+
+    #bg-dusk {
+      background-image: url('Muntu Visual Assets/dusk-bg.png');
+      background-position: 50% 50%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      animation: bgSway 12s ease-in-out infinite reverse;
+      opacity: 0;
+      /* NO transition — snap on reset is intentional */
+    }
+
+    #bg-scene {
+      position: fixed;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 1;
+      opacity: 0;
+      pointer-events: none;
+      /* NO transition — all fading via fadeTo() */
+    }
+
+    /* Collapse overlay — sits above bg-scene so post-dam/fields stays
+       visible until collapse fades fully in. Fades 0→1 from mwenyu 50→0. */
+    #bg-collapse {
+      position: fixed;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 2;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ─── BREATH ANIMATION ───────────────────────────────────────── */
+
+    @keyframes worldBreathe {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(0.97); }
+      100% { transform: scale(1); }
+    }
+
+    #game.breathing {
+      animation: worldBreathe 1200ms ease-in-out 1;
+    }
+
+    /* ─── EMBER ──────────────────────────────────────────────────── */
+
+    #ndzo-ember {
+      display: none;
+      position: fixed;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 151;
+      pointer-events: none;
+    }
+
+    /* ─── THREE-TIER TEXT SHADOW SYSTEM ─────────────────────────── */
+
+    /* Tier 2 — title + resource labels (with inline values) */
+    #title,
+    #mwenyu-label,
+    #kixikila-label {
+      color: #FFFFFF;
+      text-shadow:
+        0 0 0 1px rgba(0,0,0,0.3),
+        2px 2px 3px rgba(0,0,0,0.4);
+    }
+
+    /* Tier 3 — loop counter + subtitle */
+    #loop-display,
+    #kixikila-subtitle {
+      color: #FFFFFF;
+      text-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+    }
+
+    /* Tier 1 — center-screen narrative text */
+    #event-text,
+    #collapse-text {
+      color: #FFFFFF;
+      text-shadow:
+        0 0 0 1px rgba(0,0,0,0.8),
+        2px 2px 3px rgba(0,0,0,1);
+    }
+
+    /* ─── CRITICAL MWENYU ───────────────────────────────────────── */
+
+    #mwenyu-label.critical {
+      color: #FF6B6B;
+      transition: color 1s ease;
+    }
+    #mwenyu-label.critical #mwenyu-value {
+      color: #FF6B6B;
+    }
+
+    /* ─── GRIOT OPENING ─────────────────────────────────────────── */
+
+    #griot-opening {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 1;
+      transition: opacity 1.2s ease;
+    }
+
+    #griot-opening.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #griot-opening.hidden {
+      display: none;
+    }
+
+    #griot-line {
+      font-family: Georgia, serif;
+      font-style: italic;
+      font-size: clamp(0.95rem, 3.5vw, 1.25rem);
+      color: #F5ECD7;
+      text-align: center;
+      max-width: 36rem;
+      padding: 0 1.2rem;
+      line-height: 1.8;
+      letter-spacing: 0.01em;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+    }
+    /* ─── NDZO FRAGMENT CLASSES (moved from inline for responsive) ── */
+
+    .ndzo-fragment-header {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.6rem;
+      color: #C9A84C;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 1.1rem;
+    }
+
+    .ndzo-fragment-title {
+      font-family: Georgia, serif;
+      font-size: 0.92rem;
+      color: #F5ECD7;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.65rem;
+    }
+
+    .ndzo-fragment-hr {
+      border: none;
+      border-top: 1px solid rgba(201, 168, 76, 0.25);
+      margin-bottom: 1.4rem;
+    }
+
+    .ndzo-fragment-body {
+      font-family: Georgia, serif;
+      font-size: 0.84rem;
+      color: #F5ECD7;
+      line-height: 1.8;
+    }
+
+    .ndzo-fragment-body p {
+      margin-bottom: 1em;
+    }
+
+    .ndzo-fragment-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .ndzo-fragment-footer-hr {
+      border: none;
+      border-top: 1px solid rgba(201, 168, 76, 0.25);
+      margin: 1.4rem 0 0.7rem;
+    }
+
+    .ndzo-fragment-footer {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.58rem;
+      color: #F5ECD7;
+      opacity: 0.35;
+      letter-spacing: 0.1em;
+    }
+
+    /* ─── MOBILE RESPONSIVE ────────────────────────────────────── */
+
+    @media (max-width: 600px) {
+      #title {
+        top: auto;
+        bottom: 1rem;
+        right: 1rem;
+        font-size: 9px;
+        opacity: 0.5;
+      }
+
+      #mwenyu-label {
+        top: 1rem;
+        left: 1rem;
+      }
+
+      #loop-display {
+        top: 3rem;
+        left: 1rem;
+      }
+
+      #kixikila-block {
+        top: 4.6rem;
+        left: 1rem;
+      }
+
+      #event-block {
+        top: 40%;
+        padding: 0 1rem;
+      }
+
+      .choice-btn {
+        display: block;
+        width: 100%;
+        margin: 0 0 0.6rem 0;
+        padding: 0.75rem 1rem;
+      }
+
+      #ndzo-ember {
+        width: 60px;
+        bottom: 2rem;
+      }
+
+      .ndzo-fragment-body {
+        font-size: 0.78rem;
+        line-height: 1.7;
+      }
+
+      .ndzo-fragment-title {
+        font-size: 0.84rem;
+      }
+
+      #debug {
+        font-size: 0.55rem;
+        right: 0.8rem;
+        bottom: 0.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="bg-dawn"></div>
+  <div id="bg-dusk"></div>
+  <div id="bg-scene"></div>
+  <div id="bg-collapse"></div>
+
+  <img id="ndzo-ember" src="ember-frame-1.png" alt="" aria-hidden="true" />
+  <div id="ndzo-bg"></div>
+
+  <div id="griot-opening" aria-live="polite">
+    <div id="griot-line">
+      <p id="griot-line-1"></p>
+      <p id="griot-line-2" style="margin-top:0.8em"></p>
+    </div>
+  </div>
+
+  <div id="game">
+    <div id="mwenyu-label">MWENYU (Life Force) &mdash; <span id="mwenyu-value">0</span></div>
+    <div id="title">Muntu: First Forgetting</div>
+    <div id="loop-display">LOOP &nbsp;<span id="loop-number">0</span></div>
+    <div id="kixikila-block">
+      <div id="kixikila-label">KIXIKILA (Collective Memory) &mdash; <span id="kixikila-value">0</span></div>
+      <div id="kixikila-subtitle">Accrues through story</div>
+    </div>
+    <div id="event-block"></div>
+    <div id="nzinga-moment"></div>
+  </div>
+
+  <div id="debug">dam: <span id="flag-value">&mdash;</span></div>
+
+  <script>
+    // ── Authored content ───────────────────────────────────────────────────────
+
+    const PORTRAIT_SRC = 'Muntu Visual Assets/nzinga-portrait.png';
+
+    const LOOP0_GREETING =
+      'The river does not ask where it is going. But I have watched enough rivers '
+    + 'to know \u2014 some carry memory, and some carry only water. We will see which you are.';
+
+    const GRIOT_LINE =
+      'Before the first forgetting, there was a question. '
+    + 'You have been trying to remember it ever since.';
+
+    const nzingaDialogue = {
+      loop2: {
+        greeting: {
+          dam:    'You chose to hold the water, and still it took everything. I watched you decide \u2014 the way you hesitated before the stone was set.',
+          fields: 'You gave the land room to breathe, and still it took everything. I saw you walk the boundary alone, the morning before you told anyone.',
+        },
+        threshold: 'The second time is harder to watch \u2014 because now I know you will not understand why until the third.',
+      },
+      loop3: {
+        threshold: 'You are beginning to ask the right question, and I have learned not to tell you which one it is.',
+      },
+    };
+
+    // Hook line slots in the player's Loop 0 choice.
+    // NOTE: player_built_dam reflects the most recent choice. In a full build,
+    // save loop0_built_dam separately at first reset for stricter accuracy.
+    function getHookLine() {
+      return player_built_dam
+        ? 'You chose the water before you chose the fire. I did not tell you to do that. No one here did.'
+        : 'You fed the fields before you fed the fire. I did not tell you to do that. No one here did.';
+    }
+
+    const rebornLabels = [
+      'Reborn',       // loop_count 0 → 1
+      'Zikama',       // loop_count 1 → 2
+      'Kuzaliwa',     // loop_count 2 → 3
+      'Kusoleka',     // loop_count 3 → 4
+      'Remember',     // loop_count 4+ (cycles)
+    ];
+
+    function getRebornLabel() {
+      return rebornLabels[loop_count % rebornLabels.length];
+    }
+
+    // ── Mobile detection ───────────────────────────────────────────────────────
+
+    function isMobile() { return window.innerWidth <= 600; }
+
+    // ── Ember animation ────────────────────────────────────────────────────────
+
+    const emberFrames  = [
+      'ember-frame-1.png',
+      'ember-frame-2.png',
+      'ember-frame-3.png',
+      'ember-frame-4.png',
+      'ember-frame-5.png',
+    ];
+    const emberTimings = [150, 150, 150, 150, 400]; // frame 5 holds = dim-beat
+    let emberTimeoutId = null;
+    let emberIndex     = 0;
+    const emberEl      = document.getElementById('ndzo-ember');
+
+    function cycleEmber() {
+      if (!emberEl) return;
+      emberEl.src    = emberFrames[emberIndex];
+      const delay    = emberTimings[emberIndex];
+      emberIndex     = (emberIndex + 1) % emberFrames.length;
+      emberTimeoutId = setTimeout(cycleEmber, delay);
+    }
+
+    function startEmber() {
+      emberIndex = 0;
+      if (emberEl) emberEl.style.display = 'block';
+      cycleEmber();
+    }
+
+    function stopEmber() {
+      clearTimeout(emberTimeoutId);
+      emberTimeoutId = null;
+      if (emberEl) emberEl.style.display = 'none';
+    }
+
+    // ── State ──────────────────────────────────────────────────────────────────
+
+    let mwenyu           = 150;
+    let kixikila         = 0;      // increments only through authored story events
+    let loop_count       = 0;      // starts at 0; increments on each reset
+    let player_built_dam = null;   // null | true | false — persists across resets
+    let choiceResolved   = false;  // resets each loop; gates the Mwenyu-50 event
+    let tickInterval     = null;
+    let loop0NzingaFired = false;  // fires exactly once, first loop only
+    let loop2NzingaFired = false;  // fires exactly once, third loop only
+
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+
+    const eventBlock    = document.getElementById('event-block');
+    const flagValue     = document.getElementById('flag-value');
+    const gameEl        = document.getElementById('game');
+
+    // ── Animation utilities ────────────────────────────────────────────────────
+
+    // Fades el from its current opacity to targetOpacity over durationMs.
+    // isCancelled (optional): () => bool — if true, RAF stops immediately.
+    function fadeTo(el, targetOpacity, durationMs, onComplete, isCancelled) {
+      const startTime = performance.now();
+      const raw  = parseFloat(el.style.opacity);
+      const from = isNaN(raw) ? 1 : raw;  // treat unstyled as fully visible
+
+      function frame(now) {
+        if (isCancelled && isCancelled()) return;
+        const t = Math.min((now - startTime) / durationMs, 1);
+        el.style.opacity = from + (targetOpacity - from) * t;
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else if (onComplete && !(isCancelled && isCancelled())) {
+          onComplete();
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // Character-by-character typewriter. Pushes timeout IDs into timeoutIds.
+    function typewrite(el, text, msPerChar, timeoutIds, isCancelled, onComplete) {
+      let i = 0;
+      el.textContent = '';
+
+      function next() {
+        if (isCancelled && isCancelled()) return;
+        if (i >= text.length) {
+          if (onComplete) onComplete();
+          return;
+        }
+        el.textContent += text[i++];
+        const id = setTimeout(next, msPerChar);
+        timeoutIds.push(id);
+      }
+      next();
+    }
+
+    // ── Timing util ────────────────────────────────────────────────────────────
+
+    function ts() {
+      return new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+    }
+
+    // ── Scene system ───────────────────────────────────────────────────────────
+
+    function transitionToScene(sceneName, durationMs, onComplete) {
+      const sceneMap = {
+        'post-dam':        'Muntu Visual Assets/post-dam.png',
+        'post-fields':     'Muntu Visual Assets/post-fields.png',
+        'collapse-dam':    'Muntu Visual Assets/collapse-dam.png',
+        'collapse-fields': 'Muntu Visual Assets/collapse-fields.png',
+      };
+
+      if (sceneName === 'dawn') {
+        // Fade bg-scene OUT — reveals dawn beneath.
+        fadeTo(bgScene, 0, durationMs, () => {
+          bgScene.style.backgroundImage = '';
+          currentScene = 'dawn';
+          if (onComplete) onComplete();
+        });
+        return;
+      }
+
+      const url = sceneMap[sceneName];
+      if (!url) return;
+
+      // Always start fade from opacity 0 so there is no jump.
+      bgScene.style.opacity         = '0';
+      bgScene.style.backgroundImage = `url('${url}')`;
+
+      // Double rAF: lets the browser register the new backgroundImage
+      // before the fade begins — prevents the flash-then-fade artifact.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          fadeTo(bgScene, 1, durationMs, () => {
+            currentScene = sceneName;
+            if (onComplete) onComplete();
+          });
+        });
+      });
+    }
+
+    // ── Tick engine ────────────────────────────────────────────────────────────
+
+    function startTicking() {
+      if (tickInterval) return;
+      tickInterval = setInterval(tick, 800);
+    }
+
+    function stopTicking() {
+      clearInterval(tickInterval);
+      tickInterval = null;
+    }
+
+    const bgDusk    = document.getElementById('bg-dusk');
+    const bgScene   = document.getElementById('bg-scene');
+    const bgCollapse = document.getElementById('bg-collapse');
+    let currentScene = 'dawn';
+
+    function tick() {
+      mwenyu -= 1;
+      updateDisplay();
+
+      // Critical label
+      if (mwenyu <= 30) {
+        document.getElementById('mwenyu-label').classList.add('critical');
+      } else {
+        document.getElementById('mwenyu-label').classList.remove('critical');
+      }
+
+      // Dusk crossfade — builds continuously mwenyu 150 → 0.
+      // The collapse overlay fades in above it so dusk reaching full opacity
+      // has no visible effect on the final frame.
+      bgDusk.style.opacity = String(Math.min((150 - mwenyu) / 150, 1));
+
+      // Dusk-mode class
+      if (mwenyu <= 82) {
+        document.body.classList.add('dusk-mode');
+      } else {
+        document.body.classList.remove('dusk-mode');
+      }
+
+      // Collapse overlay fades in over the intact post-dam/fields scene (bgScene).
+      // bgScene is NEVER modified here — no snap, no background swap.
+      // bg-collapse (z-index 2) fades in above bg-scene (z-index 1).
+      if (mwenyu <= 50 && player_built_dam !== null) {
+        const collapseUrl = player_built_dam
+          ? "url('Muntu Visual Assets/collapse-dam.png')"
+          : "url('Muntu Visual Assets/collapse-fields.png')";
+
+        // Load the image once; never overwrite mid-fade.
+        if (!bgCollapse.style.backgroundImage) {
+          bgCollapse.style.backgroundImage = collapseUrl;
+        }
+
+        // 0 at mwenyu 50 → 1 at mwenyu 0
+        bgCollapse.style.opacity = String(Math.min((50 - mwenyu) / 50, 1));
+      }
+
+      // Loop 0 observation — Nzinga appears at 125, ticking continues
+      if (mwenyu === 125 && loop_count === 0 && !loop0NzingaFired) {
+        fireLoop0Nzinga();
+      }
+
+      // Loop 2 greeting — Nzinga appears at 125, ticking continues
+      if (mwenyu === 125 && loop_count === 2 && !loop2NzingaFired) {
+        fireLoop2Nzinga();
+      }
+
+      // Binary choice — blocks ticking until resolved
+      if (mwenyu === 100 && !choiceResolved) {
+        stopTicking();
+        showBinaryChoice();
+        return;
+      }
+
+      // Mid-loop environmental beat
+      if (mwenyu === 50) {
+        showEnvBeat('The rains are late this season.');
+      }
+
+      // Collapse
+      if (mwenyu <= 0) {
+        triggerCollapse();
+      }
+    }
+
+    // ── Display ────────────────────────────────────────────────────────────────
+
+    function updateDisplay() {
+      document.getElementById('mwenyu-value').textContent   = mwenyu;
+      document.getElementById('kixikila-value').textContent = kixikila;
+      document.getElementById('loop-number').textContent    = loop_count;
+      flagValue.textContent = player_built_dam === null ? '\u2014'
+                            : player_built_dam ? 'true' : 'false';
+    }
+
+    function clearEvent() {
+      eventBlock.innerHTML = '';
+    }
+
+    // ── Binary choice ──────────────────────────────────────────────────────────
+
+    // ── Environmental beat — ticking continues, text fades in then out ───────────
+
+    function showEnvBeat(text) {
+      const el = document.createElement('p');
+      el.textContent = text;
+      Object.assign(el.style, {
+        fontSize:      isMobile() ? '0.78rem' : '0.85rem',
+        color:         '#F5ECD7',
+        lineHeight:    '1.7',
+        fontStyle:     'italic',
+        opacity:       '0',
+        letterSpacing: '0.02em',
+      });
+      eventBlock.appendChild(el);
+      fadeTo(el, 0.7, 800, () => {
+        setTimeout(() => fadeTo(el, 0, 1200, () => el.remove()), 4000);
+      });
+    }
+
+    function showBinaryChoice() {
+      clearEvent();
+
+      const p = document.createElement('p');
+      p.id = 'event-text';
+      p.textContent = 'The river floods before the planting season. '
+                    + 'Move the fields uphill, or build a dam?';
+      eventBlock.appendChild(p);
+
+      const btnMove = document.createElement('button');
+      btnMove.className   = 'choice-btn';
+      btnMove.textContent = 'Move the Fields';
+      btnMove.addEventListener('click', () => resolveChoice(false));
+
+      const btnDam = document.createElement('button');
+      btnDam.className   = 'choice-btn';
+      btnDam.textContent = 'Build the Dam';
+      btnDam.addEventListener('click', () => resolveChoice(true));
+
+      eventBlock.appendChild(btnMove);
+      eventBlock.appendChild(btnDam);
+    }
+
+    function resolveChoice(builtDam) {
+      player_built_dam = builtDam;
+      choiceResolved   = true;
+      clearEvent();
+      updateDisplay();
+      startTicking();
+      // 400ms delay so the UI has settled before the scene change begins.
+      setTimeout(() => {
+        const scene = builtDam ? 'post-dam' : 'post-fields';
+        transitionToScene(scene, 2500);
+      }, 400);
+    }
+
+    // ── Collapse ───────────────────────────────────────────────────────────────
+
+    function triggerCollapse() {
+      stopTicking();
+      // Collapse overlay is already fading in — driven by tick() since Mwenyu 50.
+
+      setTimeout(() => {
+
+        if (loop_count === 1) {
+          fireLoop1Nzinga();
+          return;
+        }
+
+        if (loop_count === 2) {
+          fireNzingaThreshold(nzingaDialogue.loop2.threshold);
+          return;
+        }
+
+        if (loop_count === 3) {
+          fireNzingaThreshold(nzingaDialogue.loop3.threshold);
+          return;
+        }
+
+        clearEvent();
+        const p = document.createElement('p');
+        p.id = 'collapse-text';
+        p.textContent = 'The civilization falls. What you knew returns to earth.';
+        eventBlock.appendChild(p);
+
+        setTimeout(() => {
+          const btn = document.createElement('button');
+          btn.id            = 'reset-btn';
+          btn.style.display = 'inline-block';
+          btn.textContent   = getRebornLabel();
+          btn.addEventListener('click', resetLoop);
+          eventBlock.appendChild(btn);
+        }, 3000);
+
+      }, 800);
+    }
+
+    // ── Reset ──────────────────────────────────────────────────────────────────
+
+    function resetLoop() {
+      loop_count    += 1;
+      mwenyu         = 150;
+      choiceResolved = false;
+      // player_built_dam persists intentionally across resets
+      clearEvent();
+      updateDisplay();
+      bgDusk.style.transition = 'none';
+      bgDusk.style.opacity    = '0';
+      bgScene.style.opacity   = '0';
+      bgScene.style.backgroundImage = '';
+      bgCollapse.style.opacity = '0';
+      bgCollapse.style.backgroundImage = '';
+      currentScene = 'dawn';
+      document.body.classList.remove('dusk-mode');
+      document.getElementById('mwenyu-label').classList.remove('critical');
+      requestAnimationFrame(() => { bgDusk.style.transition = ''; });
+      gameEl.classList.add('breathing');
+      gameEl.addEventListener('animationend', () => {
+        gameEl.classList.remove('breathing');
+        // Dawn transition fires after breath — breath animation covers the crossfade.
+        transitionToScene('dawn', 1000);
+      }, { once: true });
+
+      if (loop_count === 1) {
+        // First prestige — Ndzo surfaces before ticking resumes.
+        // startTicking() is called at the end of fireNdzo.
+        setTimeout(fireNdzo, 3000);
+      } else {
+        startTicking();
+      }
+    }
+
+    // ── Nzinga portrait panel positioning ─────────────────────────────────────
+
+    function nzingaPanelStyle() {
+      return {
+        position:      'fixed',
+        top:           '50%',
+        left:          '50%',
+        transform:     'translate(-50%, -60%)',
+        opacity:       '0',
+        display:       'flex',
+        flexDirection: 'column',
+        alignItems:    'center',
+        maxWidth:      isMobile() ? '240px' : '280px',
+        padding:       '0 1rem',
+        textAlign:     'center',
+        zIndex:        '100',
+      };
+    }
+
+    // ── Loop 0 Nzinga — right-panel observation, ticking continues ─────────────
+    //
+    //   Mwenyu 25, first loop only.
+    //   Portrait fades in on the right. Greeting types out at 40ms/char.
+    //   Stays 8 seconds after text completes, then fades out.
+    //   Click anywhere to dismiss early.
+
+    function fireLoop0Nzinga() {
+      loop0NzingaFired = true;
+      console.log(`[${ts()}] NZINGA L0 [beat:start] — portrait appearing, right panel`);
+
+      let cancelled = false;
+      const timeoutIds  = [];
+      const isCancelled = () => cancelled;
+
+      const container = document.createElement('div');
+      Object.assign(container.style, nzingaPanelStyle());
+
+      const mobile = isMobile();
+      const img = document.createElement('img');
+      img.src = PORTRAIT_SRC;
+      img.alt = 'Mama Nzinga';
+      Object.assign(img.style, {
+        width:        mobile ? '100px' : '140px',
+        height:       'auto',
+        display:      'block',
+        marginBottom: '1rem',
+      });
+
+      const textEl = document.createElement('p');
+      Object.assign(textEl.style, {
+        fontFamily: 'Georgia, serif',
+        fontSize:   mobile ? '9pt' : '10pt',
+        color:      '#FFFFFF',
+        lineHeight: '1.6',
+        textAlign:  'center',
+        textShadow: '0 0 0 1px rgba(0,0,0,0.8), 2px 2px 3px rgba(0,0,0,1)',
+      });
+
+      container.appendChild(img);
+      container.appendChild(textEl);
+      document.body.appendChild(container);
+
+      function dismiss(byPlayer) {
+        if (cancelled) return;
+        cancelled = true;
+        timeoutIds.forEach(clearTimeout);
+        document.removeEventListener('click', onAnyClick);
+        if (byPlayer) {
+          console.log(`[${ts()}] NZINGA L0 [beat:interrupted] — dismissed by player click`);
+        }
+        fadeTo(container, 0, 600, () => container.remove());
+      }
+
+      function onAnyClick() { dismiss(true); }
+      document.addEventListener('click', onAnyClick, { once: true });
+
+      // ── Contextual line before portrait appears ───────────────────────────────
+      const contextLine = document.createElement('p');
+      contextLine.textContent = 'An elder watches from the edge of the settlement.';
+      Object.assign(contextLine.style, {
+        fontSize:   mobile ? '9pt' : '10pt',
+        color:      '#FFFFFF',
+        lineHeight: '1.7',
+        textShadow: '0 0 0 1px rgba(0,0,0,0.8), 2px 2px 3px rgba(0,0,0,1)',
+        opacity:    '0',
+      });
+      eventBlock.appendChild(contextLine);
+
+      fadeTo(contextLine, 1, 800, () => {
+        if (cancelled) return;
+        setTimeout(() => {
+          if (cancelled) return;
+          fadeTo(contextLine, 0, 600, () => {
+            contextLine.remove();
+            if (cancelled) return;
+            fadeTo(container, 1, 1000, () => {
+              if (cancelled) return;
+              console.log(`[${ts()}] NZINGA L0 [beat:portrait-visible] — typewriter starts (40ms/char)`);
+
+        typewrite(textEl, LOOP0_GREETING, 40, timeoutIds, isCancelled, () => {
+          if (cancelled) return;
+          console.log(`[${ts()}] NZINGA L0 [beat:greeting-complete] — 8s hold begins`);
+
+          const id = setTimeout(() => {
+            if (cancelled) return;
+            document.removeEventListener('click', onAnyClick);
+            console.log(`[${ts()}] NZINGA L0 [beat:fade-out] — fading out`);
+            fadeTo(container, 0, 1000, () => {
+              container.remove();
+              console.log(`[${ts()}] NZINGA L0 [beat:end] — sequence complete`);
+            }, isCancelled);
+          }, 8000);
+          timeoutIds.push(id);
+        });
+            }, isCancelled);    // closes fadeTo(container, 1, 1000)
+          });                   // closes fadeTo(contextLine, 0, 600)
+        }, 2500);               // closes setTimeout — 2.5s hold
+      });                       // closes fadeTo(contextLine, 1, 800)
+    }
+
+    // ── Loop 1 Nzinga — the hook, replaces collapse ────────────────────────────
+    //
+    //   Fires when loop_count === 1 at Mwenyu 150.
+    //   Full sequence with screen dim, centered portrait, hook line, Griot line,
+    //   fade to black, then resetLoop().
+    //   Click anywhere to skip immediately to reset (failsafe for playtesters).
+
+    function fireLoop1Nzinga() {
+      console.log(`[${ts()}] NZINGA L1 [beat:start] — tick halted, sequence begins`);
+
+      let cancelled = false;
+      const timeoutIds  = [];
+      const isCancelled = () => cancelled;
+
+      function schedule(fn, delay) {
+        const id = setTimeout(() => { if (!cancelled) fn(); }, delay);
+        timeoutIds.push(id);
+      }
+
+      let stage        = null;
+      let blackOverlay = null;
+      let griotEl      = null;
+
+      function teardown() {
+        gameEl.style.opacity = '1';
+        if (stage        && stage.parentNode)        stage.remove();
+        if (blackOverlay && blackOverlay.parentNode) blackOverlay.remove();
+      }
+
+      function interrupt() {
+        if (cancelled) return;
+        cancelled = true;
+        timeoutIds.forEach(clearTimeout);
+        document.removeEventListener('click', onInterrupt);
+        console.log(`[${ts()}] NZINGA L1 [beat:interrupted] — player skip, jumping to reset`);
+        teardown();
+        resetLoop();
+      }
+
+      function onInterrupt() { interrupt(); }
+      document.addEventListener('click', onInterrupt, { once: true });
+
+      // ── Step 1: Dim game to 0.8 opacity over 1s ───────────────────────────
+      clearEvent();
+      gameEl.style.opacity = '1';
+      fadeTo(gameEl, 0.8, 1000, stepWorldCrossing, isCancelled);
+
+      // ── Step 1b: "the world is crossing" — 3s alone, then dissolves ───────
+      function stepWorldCrossing() {
+        const crossing = document.createElement('p');
+        crossing.textContent = 'the world is crossing';
+        Object.assign(crossing.style, {
+          position:      'fixed',
+          top:           '50%',
+          left:          '50%',
+          transform:     'translate(-50%, -50%)',
+          fontFamily:    'Georgia, serif',
+          fontStyle:     'italic',
+          fontSize:      '10pt',
+          color:         '#FFFFFF',
+          textShadow:    '0 0 0 1px rgba(0,0,0,0.8), 2px 2px 3px rgba(0,0,0,1)',
+          letterSpacing: '0.08em',
+          opacity:       '0',
+          zIndex:        '50',
+          pointerEvents: 'none',
+        });
+        document.body.appendChild(crossing);
+        fadeTo(crossing, 1, 600, () => {
+          setTimeout(() => {
+            fadeTo(crossing, 0, 600, () => {
+              crossing.remove();
+              step2_portrait();
+            }, isCancelled);
+          }, 3000);
+        }, isCancelled);
+      }
+
+      // ── Step 2: Portrait fades in, centered, large (1500ms) ───────────────
+      function step2_portrait() {
+        console.log(`[${ts()}] NZINGA L1 [beat:dim-complete] — portrait appearing, centered`);
+        const mobile = isMobile();
+
+        stage = document.createElement('div');
+        Object.assign(stage.style, {
+          position:       'fixed',
+          inset:          '0',
+          display:        'flex',
+          flexDirection:  'column',
+          alignItems:     'center',
+          justifyContent: 'center',
+          padding:        '0 1.2rem',
+          opacity:        '0',
+          zIndex:         '50',
+          pointerEvents:  'none',
+        });
+
+        const img = document.createElement('img');
+        img.src = PORTRAIT_SRC;
+        img.alt = 'Mama Nzinga';
+        Object.assign(img.style, {
+          width:        mobile ? '140px' : '220px',
+          height:       'auto',
+          display:      'block',
+          marginBottom: mobile ? '1.2rem' : '2rem',
+        });
+
+        const hookEl = document.createElement('p');
+        Object.assign(hookEl.style, {
+          fontFamily: 'Georgia, serif',
+          fontSize:   mobile ? '9pt' : '10pt',
+          color:      '#FFFFFF',
+          lineHeight: '1.9',
+          textAlign:  'center',
+          maxWidth:   '420px',
+          textShadow: '0 0 0 1px rgba(0,0,0,0.8), 2px 2px 3px rgba(0,0,0,1)',
+        });
+
+        griotEl = document.createElement('p');
+        griotEl.textContent = GRIOT_LINE;
+        Object.assign(griotEl.style, {
+          fontFamily:    'Georgia, serif',
+          fontSize:      mobile ? '9pt' : '10pt',
+          color:         '#FFFFFF',
+          lineHeight:    '1.7',
+          textAlign:     'center',
+          maxWidth:      '400px',
+          marginTop:     mobile ? '1.2rem' : '2rem',
+          opacity:       '0',
+          fontStyle:     'italic',
+          letterSpacing: '0.03em',
+          textShadow:    '0 0 0 1px rgba(0,0,0,0.8), 2px 2px 3px rgba(0,0,0,1)',
+        });
+
+        stage.appendChild(img);
+        stage.appendChild(hookEl);
+        stage.appendChild(griotEl);
+        document.body.appendChild(stage);
+
+        fadeTo(stage, 1, 1500, () => step3_typewriter(hookEl), isCancelled);
+      }
+
+      // ── Step 3: 800ms pause, then typewriter at 60ms/char ─────────────────
+      function step3_typewriter(hookEl) {
+        console.log(`[${ts()}] NZINGA L1 [beat:portrait-visible] — typewriter starts (60ms/char)`);
+        schedule(() => {
+          typewrite(hookEl, getHookLine(), 60, timeoutIds, isCancelled, step4_silence);
+        }, 800);
+      }
+
+      // ── Step 4: 4 seconds of silence ──────────────────────────────────────
+      function step4_silence() {
+        console.log(`[${ts()}] NZINGA L1 [beat:hook-complete] — 4s silence`);
+        schedule(step5_griot, 4000);
+      }
+
+      // ── Step 5: Griot's line fades in beneath hook line (1000ms) ──────────
+      function step5_griot() {
+        console.log(`[${ts()}] NZINGA L1 [beat:griot-appearing]`);
+        fadeTo(griotEl, 1, 1000, step6_wait, isCancelled);
+      }
+
+      // ── Step 6: 5 seconds of silence ──────────────────────────────────────
+      function step6_wait() {
+        console.log(`[${ts()}] NZINGA L1 [beat:griot-visible] — 5s silence`);
+        schedule(step7_black, 5000);
+      }
+
+      // ── Step 7: Fade to black, reset under black, fade back in ────────────
+      function step7_black() {
+        console.log(`[${ts()}] NZINGA L1 [beat:fading-to-black]`);
+        document.removeEventListener('click', onInterrupt);
+
+        blackOverlay = document.createElement('div');
+        Object.assign(blackOverlay.style, {
+          position:      'fixed',
+          inset:         '0',
+          background:    '#000',
+          opacity:       '0',
+          zIndex:        '200',
+          pointerEvents: 'none',
+        });
+        document.body.appendChild(blackOverlay);
+
+        fadeTo(blackOverlay, 1, 1500, () => {
+          console.log(`[${ts()}] NZINGA L1 [beat:black] — resetting loop under black`);
+          if (stage && stage.parentNode) stage.remove();
+          gameEl.style.opacity = '1';
+          resetLoop();
+          setTimeout(() => {
+            fadeTo(blackOverlay, 0, 1000, () => {
+              if (blackOverlay.parentNode) blackOverlay.remove();
+              console.log(`[${ts()}] NZINGA L1 [beat:end] — sequence complete, loop ${loop_count} begins`);
+            });
+          }, 100);
+        });
+      }
+    }
+
+    // ── Loop 2 Nzinga — greeting, right panel, ticking continues ──────────────
+    //
+    //   Mirrors Loop 0: portrait on right, greeting types at 40ms/char,
+    //   holds 8s, auto-dismisses. Choice-aware: dam or fields line.
+
+    function fireLoop2Nzinga() {
+      loop2NzingaFired = true;
+      console.log(`[${ts()}] NZINGA L2 [beat:start] — greeting, right panel`);
+      const mobile = isMobile();
+
+      const line = player_built_dam
+        ? nzingaDialogue.loop2.greeting.dam
+        : nzingaDialogue.loop2.greeting.fields;
+
+      let cancelled = false;
+      const timeoutIds  = [];
+      const isCancelled = () => cancelled;
+
+      const container = document.createElement('div');
+      Object.assign(container.style, nzingaPanelStyle());
+
+      const img = document.createElement('img');
+      img.src = PORTRAIT_SRC;
+      img.alt = 'Mama Nzinga';
+      Object.assign(img.style, {
+        width:        mobile ? '100px' : '140px',
+        height:       'auto',
+        display:      'block',
+        marginBottom: '1rem',
+      });
+
+      const textEl = document.createElement('p');
+      Object.assign(textEl.style, {
+        fontFamily: 'Georgia, serif',
+        fontSize:   mobile ? '9pt' : '10pt',
+        color:      '#FFFFFF',
+        lineHeight: '1.6',
+        textAlign:  'center',
+        textShadow: '0 0 0 1px rgba(0,0,0,0.8), 2px 2px 3px rgba(0,0,0,1)',
+      });
+
+      container.appendChild(img);
+      container.appendChild(textEl);
+      document.body.appendChild(container);
+
+      function dismiss(byPlayer) {
+        if (cancelled) return;
+        cancelled = true;
+        timeoutIds.forEach(clearTimeout);
+        document.removeEventListener('click', onAnyClick);
+        if (byPlayer) console.log(`[${ts()}] NZINGA L2 [beat:interrupted] — dismissed by player click`);
+        fadeTo(container, 0, 600, () => container.remove());
+      }
+
+      function onAnyClick() { dismiss(true); }
+      document.addEventListener('click', onAnyClick, { once: true });
+
+      fadeTo(container, 1, 1000, () => {
+        if (cancelled) return;
+        console.log(`[${ts()}] NZINGA L2 [beat:portrait-visible] — typewriter starts (40ms/char)`);
+
+        typewrite(textEl, line, 40, timeoutIds, isCancelled, () => {
+          if (cancelled) return;
+          console.log(`[${ts()}] NZINGA L2 [beat:greeting-complete] — 8s hold begins`);
+
+          const id = setTimeout(() => {
+            if (cancelled) return;
+            document.removeEventListener('click', onAnyClick);
+            console.log(`[${ts()}] NZINGA L2 [beat:fade-out] — fading out`);
+            fadeTo(container, 0, 1000, () => {
+              container.remove();
+              console.log(`[${ts()}] NZINGA L2 [beat:end] — sequence complete`);
+            }, isCancelled);
+          }, 8000);
+          timeoutIds.push(id);
+        });
+      }, isCancelled);
+    }
+
+    // ── Nzinga threshold — collapse portrait + line + reset (Loop 2 & 3) ───────
+    //
+    //   Right-panel portrait. Line types at 40ms/char. 6s hold.
+    //   Portrait fades, reset button appears in event block.
+
+    function fireNzingaThreshold(line) {
+      console.log(`[${ts()}] NZINGA THRESHOLD [beat:start] — loop ${loop_count}`);
+      const mobile = isMobile();
+
+      let cancelled = false;
+      const timeoutIds  = [];
+      const isCancelled = () => cancelled;
+
+      clearEvent();
+
+      const container = document.createElement('div');
+      Object.assign(container.style, nzingaPanelStyle());
+
+      const img = document.createElement('img');
+      img.src = PORTRAIT_SRC;
+      img.alt = 'Mama Nzinga';
+      Object.assign(img.style, {
+        width:        mobile ? '100px' : '140px',
+        height:       'auto',
+        display:      'block',
+        marginBottom: '1rem',
+      });
+
+      const textEl = document.createElement('p');
+      Object.assign(textEl.style, {
+        fontFamily: 'Georgia, serif',
+        fontSize:   mobile ? '9pt' : '10pt',
+        color:      '#FFFFFF',
+        lineHeight: '1.6',
+        textAlign:  'center',
+        textShadow: '0 0 0 1px rgba(0,0,0,0.8), 2px 2px 3px rgba(0,0,0,1)',
+      });
+
+      container.appendChild(img);
+      container.appendChild(textEl);
+      document.body.appendChild(container);
+
+      fadeTo(container, 1, 1000, () => {
+        if (cancelled) return;
+        console.log(`[${ts()}] NZINGA THRESHOLD [beat:portrait-visible] — typewriter starts`);
+
+        typewrite(textEl, line, 40, timeoutIds, isCancelled, () => {
+          if (cancelled) return;
+          console.log(`[${ts()}] NZINGA THRESHOLD [beat:line-complete] — 6s hold`);
+
+          const id = setTimeout(() => {
+            if (cancelled) return;
+            fadeTo(container, 0, 800, () => {
+              container.remove();
+              console.log(`[${ts()}] NZINGA THRESHOLD [beat:end] — reset button appearing`);
+
+              const btn = document.createElement('button');
+              btn.id            = 'reset-btn';
+              btn.style.display = 'inline-block';
+              btn.textContent   = getRebornLabel();
+              btn.addEventListener('click', resetLoop);
+              eventBlock.appendChild(btn);
+            }, isCancelled);
+          }, 6000);
+          timeoutIds.push(id);
+        });
+      }, isCancelled);
+    }
+
+    // ── Ndzo — Kixikila Fragment 001: The Asking ───────────────────────────────
+    //
+    //   Fires 3 seconds after the first prestige (loop_count becomes 1).
+    //   Ticking is held until the Ndzo descends.
+    //   No skip — the sequence auto-completes.
+    //
+    //   Beat 1 (~t=0):    Vessel rises from below (1500ms).
+    //   Beat 2 (~t=1500): "something has been remembered" fades in. 2s pause.
+    //   Beat 3 (~t=4000): Vessel brightens subtly. Fragment text fades in (1200ms).
+    //   Beat 4 (~t=11200): Closing lines materialize (800ms). 4s pause.
+    //   Beat 5 (~t=16000): Vessel descends (1800ms). Thumbnail stays. Tick resumes.
+
+    function fireNdzo() {
+      const ndzoB = document.getElementById('ndzo-bg');
+      ndzoB.style.opacity = '0';
+      ndzoB.style.display = 'block';
+      fadeTo(gameEl, 0, 800, () => {
+        fadeTo(ndzoB, 1, 1000, () => {
+          startEmber();
+          startNdzoBeats();
+        });
+      });
+
+      function startNdzoBeats() {
+      console.log(`[${ts()}] NDZO [beat:1] — vessel rising from below`);
+
+      const timeoutIds = [];
+      function schedule(fn, delay) {
+        const id = setTimeout(fn, delay);
+        timeoutIds.push(id);
+      }
+
+      // ── Vessel — dark clay shape ─────────────────────────────────────────────
+      const vessel = document.createElement('div');
+      Object.assign(vessel.style, {
+        position:     'fixed',
+        bottom:       '2.5rem',
+        left:         '50%',
+        // starts below the frame; JS animates translateY toward 0
+        transform:    'translateX(-50%) translateY(130px)',
+        width:        '46px',
+        height:       '62px',
+        // asymmetric border-radius: narrower top, fuller bottom → vessel silhouette
+        borderRadius: '42% 42% 50% 50% / 28% 28% 72% 72%',
+        background:   '#2A0D04',
+        border:       '1px solid #3E1A0A',
+        opacity:      '0',
+        zIndex:       '150',
+        pointerEvents: 'none',
+      });
+
+      // ── "something has been remembered" ─────────────────────────────────────
+      const statusLine = document.createElement('p');
+      statusLine.textContent = 'something has been remembered';
+      Object.assign(statusLine.style, {
+        position:      'fixed',
+        bottom:        '9rem',
+        left:          '50%',
+        transform:     'translateX(-50%)',
+        fontFamily:    'Georgia, serif',
+        fontSize:      '0.68rem',
+        color:         '#F5ECD7',
+        opacity:       '0',
+        letterSpacing: '0.1em',
+        whiteSpace:    'nowrap',
+        zIndex:        '150',
+        pointerEvents: 'none',
+      });
+
+      // ── Fragment text panel ──────────────────────────────────────────────────
+      const mobile = isMobile();
+      const textPanel = document.createElement('div');
+      Object.assign(textPanel.style, {
+        position:  'fixed',
+        top:       '50%',
+        left:      '50%',
+        transform: 'translate(-50%, -54%)', // shift up slightly to clear vessel
+        maxWidth:  '500px',
+        width:     '90%',
+        maxHeight: 'calc(100vh - 180px)',
+        overflowY: 'auto',
+        background: 'rgba(26, 10, 0, 0.94)',
+        border:    '1px solid rgba(201, 168, 76, 0.18)',
+        padding:   mobile ? '1.4rem 1.2rem 1.2rem' : '2rem 2.2rem 1.6rem',
+        opacity:   '0',
+        zIndex:    '150',
+        pointerEvents: 'none',
+      });
+
+      textPanel.innerHTML = `
+        <div class="ndzo-fragment-header">Kixikila Fragment &nbsp;&middot;&nbsp; 001</div>
+        <div class="ndzo-fragment-title">The Asking</div>
+        <hr class="ndzo-fragment-hr">
+        <div class="ndzo-fragment-body">
+          <p>When proto-Bantu communities faced choices about land and water, which river bend to farm, which grove to clear, they did not decide alone, and they did not decide only among themselves.</p>
+          <p>The bisimbi, territorial spirits who inhabited rivers, pools, and forest groves, were understood to be the prior owners. Before any clearing began, the nganga mediated a formal request: the community gathered, deliberated to consensus, and then asked permission from the land itself.</p>
+          <p>This was not ceremony grafted onto practicality. It was the decision. A clearing begun without it was not farming. It was theft.</p>
+          <p>The land always knew before you did what you would choose.</p>
+        </div>
+        <hr class="ndzo-fragment-footer-hr">
+        <div class="ndzo-fragment-footer">Niger-Congo Heartland &nbsp;&middot;&nbsp; ~2000 BCE</div>
+      `;
+
+      // Closing lines — Beat 4, materialize separately
+      const closingLines = document.createElement('div');
+      closingLines.innerHTML =
+        '<p>kixikila grows only through memory</p>'
+      + '<p>it cannot be farmed</p>';
+      Object.assign(closingLines.style, {
+        fontFamily:    'Georgia, serif',
+        fontSize:      '0.7rem',
+        color:         '#C9A84C',
+        fontStyle:     'italic',
+        lineHeight:    '1.9',
+        textAlign:     'center',
+        opacity:       '0',
+        marginTop:     '1.3rem',
+        letterSpacing: '0.04em',
+        pointerEvents: 'none',
+      });
+      textPanel.appendChild(closingLines);
+
+      document.body.appendChild(vessel);
+      document.body.appendChild(statusLine);
+      document.body.appendChild(textPanel);
+
+      // ── Beat 1: Vessel rises (ease-out, 1500ms) ──────────────────────────────
+      const riseStart    = performance.now();
+      const riseDuration = 1500;
+
+      function riseFrame(now) {
+        const t      = Math.min((now - riseStart) / riseDuration, 1);
+        const eased  = 1 - Math.pow(1 - t, 2);        // ease-out quad
+        const yShift = 130 * (1 - eased);
+        vessel.style.transform = `translateX(-50%) translateY(${yShift}px)`;
+        vessel.style.opacity   = String(Math.min(t * 1.8, 1));
+
+        if (t < 1) {
+          requestAnimationFrame(riseFrame);
+        } else {
+          onVesselSettled();
+        }
+      }
+      requestAnimationFrame(riseFrame);
+
+      // ── Beat 2: Status line in, 2s pause ─────────────────────────────────────
+      function onVesselSettled() {
+        console.log(`[${ts()}] NDZO [beat:2] — vessel settled, status line appearing`);
+        fadeTo(statusLine, 1, 500, () => {
+          schedule(beat3, 2000);
+        });
+      }
+
+      // ── Beat 3: Subtle vessel brightening + fragment text fades in ────────────
+      function beat3() {
+        console.log(`[${ts()}] NDZO [beat:3] — fragment text appearing`);
+        // Subtle brightening: border and fill become very slightly warmer
+        vessel.style.background = '#361007';
+        vessel.style.border     = '1px solid #5C2412';
+        fadeTo(textPanel, 1, 1200, () => {
+          // Fragment body readable for ~6s before closing lines appear
+          schedule(beat4, 6000);
+        });
+      }
+
+      // ── Beat 4: Closing lines materialize, then wait for player dismiss ─────────
+      function beat4() {
+        kixikila = 1;
+        updateDisplay();
+        console.log(`[${ts()}] NDZO [beat:4] — closing lines materializing, kixikila → 1`);
+        fadeTo(closingLines, 1, 800, () => {
+          const continuePrompt = document.createElement('p');
+          continuePrompt.id = 'ndzo-continue';
+          continuePrompt.textContent = '[ click anywhere to continue ]';
+          Object.assign(continuePrompt.style, {
+            fontFamily:    'Georgia, serif',
+            fontSize:      '0.65rem',
+            color:         '#F5ECD7',
+            opacity:       '0',
+            textAlign:     'center',
+            marginTop:     '1.2rem',
+            letterSpacing: '0.08em',
+            fontStyle:     'italic',
+          });
+          textPanel.appendChild(continuePrompt);
+          fadeTo(continuePrompt, 0.45, 600, () => {
+            function onDismiss() {
+              document.removeEventListener('click', onDismiss);
+              document.removeEventListener('keydown', onDismiss);
+              beat5();
+            }
+            document.addEventListener('click', onDismiss);
+            document.addEventListener('keydown', onDismiss);
+          });
+        });
+      }
+
+      // ── Beat 5: Ndzo descends (ease-in, 1800ms), thumbnail stays ─────────────
+      function beat5() {
+        console.log(`[${ts()}] NDZO [beat:5] — vessel descending`);
+        document.getElementById('ndzo-continue')?.remove();
+
+        // Fade text and status out alongside the descent
+        fadeTo(textPanel,  0, 900);
+        fadeTo(statusLine, 0, 700);
+
+        const descStart    = performance.now();
+        const descDuration = 1800;
+
+        function descendFrame(now) {
+          const t     = Math.min((now - descStart) / descDuration, 1);
+          const eased = t * t;                          // ease-in quad
+          const yShift = 130 * eased;
+          vessel.style.transform = `translateX(-50%) translateY(${yShift}px)`;
+          vessel.style.opacity   = String(Math.max(1 - t * 1.4, 0));
+
+          if (t < 1) {
+            requestAnimationFrame(descendFrame);
+          } else {
+            onNdzoGone();
+          }
+        }
+        requestAnimationFrame(descendFrame);
+      }
+
+      function onNdzoGone() {
+        console.log(`[${ts()}] NDZO [beat:end] — fading Ndzo out`);
+
+        vessel.remove();
+        textPanel.remove();
+        statusLine.remove();
+
+        const ndzoB = document.getElementById('ndzo-bg');
+        fadeTo(ndzoB, 0, 1000, () => {
+          stopEmber();
+          ndzoB.style.display = 'none';
+          fadeTo(gameEl, 1, 800, () => {
+            console.log(`[${ts()}] NDZO [beat:end] — game visible, ticking resumes`);
+
+            // Permanent thumbnail — the vessel that was there
+            const thumb = document.createElement('div');
+            Object.assign(thumb.style, {
+              position:      'fixed',
+              bottom:        '1rem',
+              right:         '5.5rem',
+              width:         '16px',
+              height:        '22px',
+              borderRadius:  '42% 42% 50% 50% / 28% 28% 72% 72%',
+              background:    '#2A0D04',
+              border:        '1px solid #3E1A0A',
+              opacity:       '0',
+              zIndex:        '90',
+              pointerEvents: 'none',
+              title:         'Fragment 001 — The Asking',
+            });
+            document.body.appendChild(thumb);
+            fadeTo(thumb, 0.5, 1200);
+
+            // Loop 1 start — Griot line fires before ticking resumes
+            runGriotOpening(startTicking);
+          });
+        });
+      }
+      } // closes startNdzoBeats
+    }
+
+    // ── Griot Opening ──────────────────────────────────────────────────────────
+    //
+    //   Full-screen black overlay. Not skippable. No loop awareness.
+    //   Call identically at the top of loop 0 and loop 1.
+    //   Timing: 91 chars × 50ms = ~4.6s type + 3s silence + 1.2s fade ≈ 9s total.
+
+    function runGriotOpening(onComplete) {
+      const LINE1 = 'Before the first forgetting, there was a question.';
+      const LINE2 = 'You have been trying to remember it ever since.';
+
+      const CHAR_DELAY_MS = 50;
+      const BREAK_MS      = 600;  // pause between lines
+      const SILENCE_MS    = 3000;
+      const FADE_MS       = 1200;  // must match CSS transition duration
+
+      const overlay  = document.getElementById('griot-opening');
+      const target1  = document.getElementById('griot-line-1');
+      const target2  = document.getElementById('griot-line-2');
+
+      // Reset state for reuse (loop 1 call)
+      overlay.classList.remove('fade-out', 'hidden');
+      target1.textContent = '';
+      target2.textContent = '';
+
+      let index = 0;
+
+      function typeLine1() {
+        if (index < LINE1.length) {
+          target1.textContent += LINE1[index++];
+          setTimeout(typeLine1, CHAR_DELAY_MS);
+        } else {
+          setTimeout(typeLine2Start, BREAK_MS);
+        }
+      }
+
+      function typeLine2Start() {
+        index = 0;
+        typeLine2();
+      }
+
+      function typeLine2() {
+        if (index < LINE2.length) {
+          target2.textContent += LINE2[index++];
+          setTimeout(typeLine2, CHAR_DELAY_MS);
+        } else {
+          setTimeout(() => {
+            overlay.classList.add('fade-out');
+            setTimeout(() => {
+              overlay.classList.add('hidden');
+              onComplete();
+            }, FADE_MS);
+          }, SILENCE_MS);
+        }
+      }
+
+      typeLine1();
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    updateDisplay();
+    runGriotOpening(startTicking);
+  </script>
+
+</body>
+</html>
